@@ -3,12 +3,40 @@
     "exchange": "Binance",
     "coin": "BTC",
     "type": "buy",
-    "price": 58200,
+    "price": 58200.0,
     "quantity": 3.2,
-    "value": 186240,
-    "distance_to_price": -1.5,
-    "wall_age": 1716480000,
-    "volatility": 2.1,
-    "volume": 25000000
+    "value": 186240.0,
+    "distance_to_price": -2.1,
+    "wall_age": 1716500000
+  },
+  {
+    "exchange": "Bybit",
+    "coin": "ETH",
+    "type": "sell",
+    "price": 3120.5,
+    "quantity": 25,
+    "value": 78012.5,
+    "distance_to_price": 1.3,
+    "wall_age": 1716500000
+  },
+  {
+    "exchange": "Coinbase",
+    "coin": "SOL",
+    "type": "buy",
+    "price": 156.75,
+    "quantity": 400,
+    "value": 62700.0,
+    "distance_to_price": -3.2,
+    "wall_age": 1716500000
+  },
+  {
+    "exchange": "Binance",
+    "coin": "BNB",
+    "type": "sell",
+    "price": 620.4,
+    "quantity": 60,
+    "value": 37224.0,
+    "distance_to_price": 2.7,
+    "wall_age": 1716500000
   }
 ]
