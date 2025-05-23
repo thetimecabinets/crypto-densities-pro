@@ -1,12 +1,1 @@
-[
-  {
-    "exchange": "Binance",
-    "coin": "BTC",
-    "type": "buy",
-    "price": 58200.0,
-    "quantity": 3.2,
-    "value": 186240.0,
-    "distance_to_price": -2.5,
-    "wall_age": 1716497580
-  }
-]
+[]
