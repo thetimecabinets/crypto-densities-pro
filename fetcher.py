@@ -4,30 +4,21 @@ import time
 from datetime import datetime
 
 WALLS_FILE = 'walls.json'
-MIN_WALL_VALUE = 50000  # lowered for better detection during testing
+MIN_WALL_VALUE = 10000  # 👈 Lowered for visibility
 BINANCE_API = 'https://api.binance.com'
-FETCH_INTERVAL_SECONDS = 300  # 5 minutes
-
-# Custom quantity thresholds by coin
-MIN_QUANTITY = {
-    "BTC": 1.0,
-    "ETH": 10.0,
-    "XRP": 5000.0,
-    "SOL": 100.0,
-    "DOGE": 10000.0
-}
+FETCH_INTERVAL_SECONDS = 300  # Every 5 minutes
 
 def get_top_symbols(limit=50):
     url = f'{BINANCE_API}/api/v3/ticker/24hr'
-    res = requests.get(url)
     try:
+        res = requests.get(url)
         data = res.json()
     except Exception as e:
-        print(f"❌ Failed to parse Binance response: {e}")
+        print(f"❌ Failed to fetch Binance data: {e}")
         return {}
 
     if not isinstance(data, list):
-        print(f"❌ Unexpected Binance response: {data}")
+        print("❌ Binance returned unexpected format")
         return {}
 
     symbols = [s for s in data if s.get('symbol', '').endswith('USDT')]
@@ -50,6 +41,16 @@ def save_walls(walls):
     with open(WALLS_FILE, 'w') as f:
         json.dump(walls, f, indent=2)
 
+def format_age(seconds):
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"{minutes} min ago"
+    hours = minutes // 60
+    if hours < 24:
+        return f"{hours}h ago"
+    days = hours // 24
+    return f"{days}d ago"
+
 def find_match(wall, prev_walls):
     for prev in prev_walls:
         if (
@@ -60,16 +61,6 @@ def find_match(wall, prev_walls):
         ):
             return prev
     return None
-
-def format_age(seconds):
-    minutes = seconds // 60
-    if minutes < 60:
-        return f"{minutes} min ago"
-    hours = minutes // 60
-    if hours < 24:
-        return f"{hours}h ago"
-    days = hours // 24
-    return f"{days}d ago"
 
 def build_walls(symbol, ticker, orderbook, prev_walls):
     coin = symbol.replace("USDT", "")
@@ -84,12 +75,7 @@ def build_walls(symbol, ticker, orderbook, prev_walls):
             quantity = float(entry[1])
             value = price * quantity
 
-            # Apply value threshold
             if value < MIN_WALL_VALUE:
-                continue
-
-            # Apply quantity filter for known coins
-            if coin in MIN_QUANTITY and quantity < MIN_QUANTITY[coin]:
                 continue
 
             wall = {
@@ -118,10 +104,10 @@ def build_walls(symbol, ticker, orderbook, prev_walls):
     return result
 
 def main():
-    print("🔁 Fetching top symbols and order books...")
+    print("🔁 Fetching top 50 Binance coins...")
     tickers = get_top_symbols()
     if not tickers:
-        print("❌ No tickers found. Aborting.")
+        print("❌ No tickers returned. Skipping.")
         return
 
     prev_walls = load_previous_walls()
@@ -132,15 +118,14 @@ def main():
             orderbook = fetch_order_book(symbol)
             walls = build_walls(symbol, ticker, orderbook, prev_walls)
             if walls:
-                print(f"✅ {symbol}: {len(walls)} walls found")
+                print(f"✅ {symbol}: {len(walls)} walls")
             all_walls.extend(walls)
             time.sleep(0.1)
         except Exception as e:
-            print(f"⚠️ Error fetching {symbol}: {e}")
+            print(f"⚠️ Error processing {symbol}: {e}")
 
-    print(f"✅ Total valid walls: {len(all_walls)}")
+    print(f"✅ Total walls saved: {len(all_walls)}")
     save_walls(all_walls)
-    print("💾 Saved walls.json")
 
 if __name__ == '__main__':
     main()
