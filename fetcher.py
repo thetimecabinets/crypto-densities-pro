@@ -4,9 +4,9 @@ import time
 from datetime import datetime
 
 WALLS_FILE = 'walls.json'
-MIN_WALL_VALUE = 10000  # 👈 Lowered for visibility
+MIN_WALL_VALUE = 10000  # Lowered for visibility
 BINANCE_API = 'https://api.binance.com'
-FETCH_INTERVAL_SECONDS = 300  # Every 5 minutes
+FETCH_INTERVAL_SECONDS = 300  # 5 minutes
 
 def get_top_symbols(limit=50):
     url = f'{BINANCE_API}/api/v3/ticker/24hr'
@@ -14,11 +14,13 @@ def get_top_symbols(limit=50):
         res = requests.get(url)
         data = res.json()
     except Exception as e:
-        print(f"❌ Failed to fetch Binance data: {e}")
+        print(f"❌ Failed to parse Binance response: {e}")
+        print(f"🔍 Raw response: {res.text}")
         return {}
 
     if not isinstance(data, list):
         print("❌ Binance returned unexpected format")
+        print(f"🔍 Full response: {data}")
         return {}
 
     symbols = [s for s in data if s.get('symbol', '').endswith('USDT')]
@@ -76,6 +78,7 @@ def build_walls(symbol, ticker, orderbook, prev_walls):
             value = price * quantity
 
             if value < MIN_WALL_VALUE:
+                print(f"🔸 Skipping low wall: {coin} ${price} x {quantity} = ${round(value)}")
                 continue
 
             wall = {
@@ -99,6 +102,7 @@ def build_walls(symbol, ticker, orderbook, prev_walls):
                 wall["first_seen"] = datetime.utcnow().isoformat()
 
             wall["age"] = format_age(wall["age_seconds"])
+            print(f"✅ Wall saved: {wall['coin']} at ${wall['price']} x {wall['quantity']} = ${wall['value']}")
             result.append(wall)
 
     return result
@@ -117,8 +121,7 @@ def main():
         try:
             orderbook = fetch_order_book(symbol)
             walls = build_walls(symbol, ticker, orderbook, prev_walls)
-            if walls:
-                print(f"✅ {symbol}: {len(walls)} walls")
+            print(f"✅ {symbol}: {len(walls)} walls")
             all_walls.extend(walls)
             time.sleep(0.1)
         except Exception as e:
