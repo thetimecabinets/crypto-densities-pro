@@ -8,8 +8,18 @@ def fetch_top_50_binance_symbols():
     url = 'https://api.binance.com/api/v3/ticker/24hr'
     response = requests.get(url)
     data = response.json()
-    symbols = sorted(data, key=lambda x: float(x['quoteVolume']), reverse=True)
-    top_50 = [s for s in symbols if s['symbol'].endswith('USDT')][:50]
+
+    # ✅ Make sure it's a list and filter only USDT pairs
+    if not isinstance(data, list):
+        print("❌ Unexpected Binance response:", data)
+        return []
+
+    top_50 = sorted(
+        [s for s in data if s.get('symbol', '').endswith('USDT')],
+        key=lambda x: float(x['quoteVolume']),
+        reverse=True
+    )[:50]
+
     return top_50
 
 def generate_whale_orders(symbols):
@@ -52,9 +62,15 @@ def save_orders(data):
         json.dump(data, f, indent=2)
 
 def main():
+    print("🔁 Fetching symbols from Binance...")
     symbols = fetch_top_50_binance_symbols()
+    print(f"✅ Got {len(symbols)} symbols.")
+
     orders = generate_whale_orders(symbols)
+    print(f"✅ Generated {len(orders)} whale orders.")
+
     save_orders(orders)
+    print("💾 Saved to data.json")
 
 if __name__ == '__main__':
     main()
