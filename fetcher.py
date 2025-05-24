@@ -7,9 +7,12 @@ OUTPUT_FILE = 'data.json'
 def fetch_top_50_binance_symbols():
     url = 'https://api.binance.com/api/v3/ticker/24hr'
     response = requests.get(url)
-    data = response.json()
+    try:
+        data = response.json()
+    except Exception:
+        print("❌ Failed to parse Binance response.")
+        return []
 
-    # ✅ Make sure it's a list and filter only USDT pairs
     if not isinstance(data, list):
         print("❌ Unexpected Binance response:", data)
         return []
@@ -26,9 +29,12 @@ def generate_whale_orders(symbols):
     orders = []
     for s in symbols:
         symbol = s['symbol'].replace('USDT', '')
-        price = float(s['lastPrice'])
-        volume = float(s['quoteVolume'])
-        volatility = abs(float(s['priceChangePercent']))
+        try:
+            price = float(s['lastPrice'])
+            volume = float(s['quoteVolume'])
+            volatility = abs(float(s['priceChangePercent']))
+        except (KeyError, ValueError):
+            continue
 
         for _ in range(random.randint(1, 3)):
             order_type = random.choice(['buy', 'sell'])
@@ -62,12 +68,28 @@ def save_orders(data):
         json.dump(data, f, indent=2)
 
 def main():
-    print("🔁 Fetching symbols from Binance...")
+    print("🔁 Fetching from Binance...")
     symbols = fetch_top_50_binance_symbols()
-    print(f"✅ Got {len(symbols)} symbols.")
+    print(f"✅ Fetched {len(symbols)} symbols")
 
     orders = generate_whale_orders(symbols)
-    print(f"✅ Generated {len(orders)} whale orders.")
+    print(f"✅ Generated {len(orders)} whale orders")
+
+    if not orders:
+        print("⚠️ No valid whale orders generated. Writing fallback data.")
+        orders = [{
+            "type": "buy",
+            "exchange": "Binance",
+            "coin": "BTC",
+            "price": 65000,
+            "quantity": 100,
+            "value": 6500000,
+            "distance": "-1.5%",
+            "age": "2 min ago",
+            "age_seconds": 120,
+            "volatility": "2.3%",
+            "volume": "20,000,000"
+        }]
 
     save_orders(orders)
     print("💾 Saved to data.json")
