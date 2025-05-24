@@ -4,12 +4,12 @@
     "exchange": "Binance",
     "coin": "BTC",
     "price": 65000,
-    "quantity": 100,
-    "value": 6500000,
-    "distance": "-1.5%",
-    "age": "2 min ago",
-    "age_seconds": 120,
-    "volatility": "2.3%",
-    "volume": "20,000,000"
+    "quantity": 2,
+    "value": 130000,
+    "distance": "-1.2%",
+    "age": "1 min ago",
+    "age_seconds": 60,
+    "volatility": "1.8%",
+    "volume": "28,000,000"
   }
 ]
