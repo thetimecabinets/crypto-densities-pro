@@ -1,7 +1,7 @@
 import requests
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 WALLS_FILE = 'walls.json'
 MIN_WALL_VALUE = 100000
@@ -52,6 +52,16 @@ def find_match(wall, prev_walls):
             return prev
     return None
 
+def format_age(seconds):
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"{minutes} min ago"
+    hours = minutes // 60
+    if hours < 24:
+        return f"{hours}h ago"
+    days = hours // 24
+    return f"{days}d ago"
+
 def build_walls(symbol, ticker, orderbook, prev_walls):
     price_now = float(ticker['lastPrice'])
     volume_24h = round(float(ticker['quoteVolume']))
@@ -86,6 +96,7 @@ def build_walls(symbol, ticker, orderbook, prev_walls):
                 wall["age_seconds"] = 0
                 wall["first_seen"] = datetime.utcnow().isoformat()
 
+            wall["age"] = format_age(wall["age_seconds"])
             result.append(wall)
 
     return result
