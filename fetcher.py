@@ -11,8 +11,17 @@ FETCH_INTERVAL_SECONDS = 300  # 5 minutes
 def get_top_symbols(limit=50):
     url = f'{BINANCE_API}/api/v3/ticker/24hr'
     res = requests.get(url)
-    data = res.json()
-    symbols = [s for s in data if s['symbol'].endswith('USDT')]
+    try:
+        data = res.json()
+    except Exception as e:
+        print(f"❌ Failed to parse Binance response: {e}")
+        return {}
+
+    if not isinstance(data, list):
+        print(f"❌ Unexpected Binance response: {data}")
+        return {}
+
+    symbols = [s for s in data if s.get('symbol', '').endswith('USDT')]
     top = sorted(symbols, key=lambda x: float(x['quoteVolume']), reverse=True)[:limit]
     return {s['symbol']: s for s in top}
 
@@ -84,6 +93,10 @@ def build_walls(symbol, ticker, orderbook, prev_walls):
 def main():
     print("🔁 Fetching top symbols and order books...")
     tickers = get_top_symbols()
+    if not tickers:
+        print("❌ No tickers found. Aborting.")
+        return
+
     prev_walls = load_previous_walls()
     all_walls = []
 
@@ -98,7 +111,7 @@ def main():
 
     print(f"✅ Total valid walls: {len(all_walls)}")
     save_walls(all_walls)
-    print("💾 Updated walls.json")
+    print("💾 Saved walls.json")
 
 if __name__ == '__main__':
     main()
