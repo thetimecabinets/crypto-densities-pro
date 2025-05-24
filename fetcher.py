@@ -3,6 +3,7 @@ import json
 import random
 
 OUTPUT_FILE = 'data.json'
+MIN_ORDER_VALUE = 100000  # ✅ NEW: Only keep orders > 100k
 
 def fetch_top_50_binance_symbols():
     url = 'https://api.binance.com/api/v3/ticker/24hr'
@@ -36,11 +37,11 @@ def generate_whale_orders(symbols):
         except (KeyError, ValueError):
             continue
 
-        for _ in range(random.randint(1, 3)):
+        for _ in range(random.randint(1, 4)):
             order_type = random.choice(['buy', 'sell'])
-            quantity = round(random.uniform(10, 1000), 2)
+            quantity = round(random.uniform(50, 10000), 2)
             value = round(quantity * price, 2)
-            if value < 5000:
+            if value < MIN_ORDER_VALUE:
                 continue
 
             distance = f"{round(random.uniform(-3, 3), 2)}%"
@@ -73,22 +74,22 @@ def main():
     print(f"✅ Fetched {len(symbols)} symbols")
 
     orders = generate_whale_orders(symbols)
-    print(f"✅ Generated {len(orders)} whale orders")
+    print(f"✅ Generated {len(orders)} whale orders ≥ ${MIN_ORDER_VALUE}")
 
     if not orders:
-        print("⚠️ No valid whale orders generated. Writing fallback data.")
+        print("⚠️ No valid whale orders found. Writing fallback...")
         orders = [{
             "type": "buy",
             "exchange": "Binance",
             "coin": "BTC",
             "price": 65000,
-            "quantity": 100,
-            "value": 6500000,
-            "distance": "-1.5%",
-            "age": "2 min ago",
-            "age_seconds": 120,
-            "volatility": "2.3%",
-            "volume": "20,000,000"
+            "quantity": 2,
+            "value": 130000,
+            "distance": "-1.2%",
+            "age": "1 min ago",
+            "age_seconds": 60,
+            "volatility": "1.8%",
+            "volume": "28,000,000"
         }]
 
     save_orders(orders)
