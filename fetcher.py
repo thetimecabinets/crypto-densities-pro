@@ -1,99 +1,104 @@
 import requests
 import json
-import random
+import time
+from datetime import datetime
 
-OUTPUT_FILE = 'data.json'
-MIN_ORDER_VALUE = 25000  # ✅ NEW: Only keep orders > 100k
+WALLS_FILE = 'walls.json'
+MIN_WALL_VALUE = 100000
+BINANCE_API = 'https://api.binance.com'
+FETCH_INTERVAL_SECONDS = 300  # 5 minutes
 
-def fetch_top_50_binance_symbols():
-    url = 'https://api.binance.com/api/v3/ticker/24hr'
-    response = requests.get(url)
+def get_top_symbols(limit=50):
+    url = f'{BINANCE_API}/api/v3/ticker/24hr'
+    res = requests.get(url)
+    data = res.json()
+    symbols = [s for s in data if s['symbol'].endswith('USDT')]
+    top = sorted(symbols, key=lambda x: float(x['quoteVolume']), reverse=True)[:limit]
+    return {s['symbol']: s for s in top}
+
+def fetch_order_book(symbol):
+    url = f'{BINANCE_API}/api/v3/depth?symbol={symbol}&limit=1000'
+    res = requests.get(url)
+    return res.json()
+
+def load_previous_walls():
     try:
-        data = response.json()
-    except Exception:
-        print("❌ Failed to parse Binance response.")
+        with open(WALLS_FILE) as f:
+            return json.load(f)
+    except:
         return []
 
-    if not isinstance(data, list):
-        print("❌ Unexpected Binance response:", data)
-        return []
+def save_walls(walls):
+    with open(WALLS_FILE, 'w') as f:
+        json.dump(walls, f, indent=2)
 
-    top_50 = sorted(
-        [s for s in data if s.get('symbol', '').endswith('USDT')],
-        key=lambda x: float(x['quoteVolume']),
-        reverse=True
-    )[:50]
+def find_match(wall, prev_walls):
+    for prev in prev_walls:
+        if (
+            prev["coin"] == wall["coin"] and
+            prev["type"] == wall["type"] and
+            abs(prev["price"] - wall["price"]) < 0.0001 and
+            abs(prev["quantity"] - wall["quantity"]) < 0.01
+        ):
+            return prev
+    return None
 
-    return top_50
+def build_walls(symbol, ticker, orderbook, prev_walls):
+    price_now = float(ticker['lastPrice'])
+    volume_24h = round(float(ticker['quoteVolume']))
+    volatility = abs(float(ticker['priceChangePercent']))
+    result = []
 
-def generate_whale_orders(symbols):
-    orders = []
-    for s in symbols:
-        symbol = s['symbol'].replace('USDT', '')
-        try:
-            price = float(s['lastPrice'])
-            volume = float(s['quoteVolume'])
-            volatility = abs(float(s['priceChangePercent']))
-        except (KeyError, ValueError):
-            continue
-
-        for _ in range(random.randint(1, 4)):
-            order_type = random.choice(['buy', 'sell'])
-            quantity = round(random.uniform(50, 10000), 2)
-            value = round(quantity * price, 2)
-            if value < MIN_ORDER_VALUE:
+    for side in ['bids', 'asks']:
+        for entry in orderbook.get(side, []):
+            price = float(entry[0])
+            quantity = float(entry[1])
+            value = price * quantity
+            if value < MIN_WALL_VALUE:
                 continue
 
-            distance = f"{round(random.uniform(-3, 3), 2)}%"
-            age_seconds = random.randint(60, 3600)
-            age = f"{round(age_seconds / 60)} min ago"
-
-            orders.append({
-                "type": order_type,
+            wall = {
+                "type": "buy" if side == "bids" else "sell",
                 "exchange": "Binance",
-                "coin": symbol,
-                "price": price,
-                "quantity": quantity,
-                "value": value,
-                "distance": distance,
-                "age": age,
-                "age_seconds": age_seconds,
+                "coin": symbol.replace("USDT", ""),
+                "price": round(price, 2),
+                "quantity": round(quantity, 2),
+                "value": round(value, 2),
+                "distance": f"{round(((price - price_now) / price_now) * 100, 2)}%",
                 "volatility": f"{volatility:.2f}%",
-                "volume": f"{round(volume):,}"
-            })
+                "volume": f"{volume_24h:,}"
+            }
 
-    return orders
+            match = find_match(wall, prev_walls)
+            if match:
+                wall["age_seconds"] = match["age_seconds"] + FETCH_INTERVAL_SECONDS
+                wall["first_seen"] = match["first_seen"]
+            else:
+                wall["age_seconds"] = 0
+                wall["first_seen"] = datetime.utcnow().isoformat()
 
-def save_orders(data):
-    with open(OUTPUT_FILE, 'w') as f:
-        json.dump(data, f, indent=2)
+            result.append(wall)
+
+    return result
 
 def main():
-    print("🔁 Fetching from Binance...")
-    symbols = fetch_top_50_binance_symbols()
-    print(f"✅ Fetched {len(symbols)} symbols")
+    print("🔁 Fetching top symbols and order books...")
+    tickers = get_top_symbols()
+    prev_walls = load_previous_walls()
+    all_walls = []
 
-    orders = generate_whale_orders(symbols)
-    print(f"✅ Generated {len(orders)} whale orders ≥ ${MIN_ORDER_VALUE}")
+    for symbol, ticker in tickers.items():
+        try:
+            orderbook = fetch_order_book(symbol)
+            walls = build_walls(symbol, ticker, orderbook, prev_walls)
+            all_walls.extend(walls)
+            time.sleep(0.1)
+        except Exception as e:
+            print(f"⚠️ Error fetching {symbol}: {e}")
 
-    if not orders:
-        print("⚠️ No valid whale orders found. Writing fallback...")
-        orders = [{
-            "type": "buy",
-            "exchange": "Binance",
-            "coin": "BTC",
-            "price": 65000,
-            "quantity": 2,
-            "value": 130000,
-            "distance": "-1.2%",
-            "age": "1 min ago",
-            "age_seconds": 60,
-            "volatility": "1.8%",
-            "volume": "28,000,000"
-        }]
-
-    save_orders(orders)
-    print("💾 Saved to data.json")
+    print(f"✅ Total valid walls: {len(all_walls)}")
+    save_walls(all_walls)
+    print("💾 Updated walls.json")
 
 if __name__ == '__main__':
     main()
