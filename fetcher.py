@@ -1,92 +1,113 @@
 import requests
-import json
 import time
+import json
 from datetime import datetime
-from config import COINS, MIN_ORDER_VALUE
 
-def get_binance_order_book(symbol):
+# === Config ===
+MIN_WALL_VALUE = 100_000  # Only show walls >= $100k
+MAX_DISTANCE_PERCENT = 25  # Ignore walls beyond ±25% from current price
+MIN_VOLUME = 1_000_000     # Only include coins with 24h volume >= $1M
+
+COINS = [  # Top 50 target coins
+    "BTC", "ETH", "BNB", "XRP", "ADA", "SOL", "DOGE", "DOT", "AVAX", "TRX",
+    "SHIB", "LINK", "MATIC", "ATOM", "LTC", "UNI", "XLM", "ETC", "XMR", "APT",
+    "INJ", "IMX", "PEPE", "1000SATS", "RNDR", "TWT", "SUI", "BCH", "ICP", "RUNE",
+    "AR", "KAS", "FET", "TIA", "WIF", "ORDI", "JUP", "JASMY", "COTI", "PYTH",
+    "CRO", "RAY", "W", "GALA", "MANTA", "ZETA", "OP", "ARB", "USDT", "USDC"
+]
+
+def get_market_price(symbol):
+    url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
+    response = requests.get(url)
+    return float(response.json().get("price", 0))
+
+def get_24h_volume(symbol):
+    url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}"
+    response = requests.get(url)
+    return float(response.json().get("quoteVolume", 0))
+
+def get_order_book(symbol):
     url = f"https://api.binance.com/api/v3/depth?symbol={symbol}&limit=1000"
     response = requests.get(url)
     data = response.json()
     return data.get("bids", []), data.get("asks", [])
 
-def get_bybit_order_book(symbol):
-    url = f"https://api.bybit.com/v5/market/orderbook?category=spot&symbol={symbol}&limit=200"
-    response = requests.get(url)
-    data = response.json()
-    order_book = data.get("result", {}).get("b", []), data.get("result", {}).get("a", [])
-    return order_book
+def format_age(timestamp):
+    delta = int((datetime.utcnow() - timestamp).total_seconds())
+    return f"{delta // 60} min ago", delta
 
-def get_price_binance(symbol):
-    url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
-    response = requests.get(url)
-    return float(response.json()["price"])
-
-def get_price_bybit(symbol):
-    url = f"https://api.bybit.com/v5/market/tickers?category=spot&symbol={symbol}"
-    response = requests.get(url)
-    result = response.json().get("result", {}).get("list", [])
-    if result:
-        return float(result[0]["lastPrice"])
-    return None
-
-def get_24h_volume(symbol):
-    url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}"
-    response = requests.get(url)
-    return float(response.json().get("quoteVolume", 0)), float(response.json().get("priceChangePercent", 0))
-
-def detect_large_orders(exchange, coin, price, orders, type_, market_price, volume, volatility, results):
-    for order_price, quantity in orders:
-        order_price = float(order_price)
-        quantity = float(quantity)
-        value = order_price * quantity
-        if value < MIN_ORDER_VALUE:
-            continue
-        distance = ((order_price - market_price) / market_price) * 100
-        wall = {
-            "exchange": exchange,
-            "coin": coin,
-            "price": order_price,
-            "quantity": quantity,
-            "value": round(value),
-            "type": type_,
-            "distance": f"{distance:.2f}%",
-            "age": "0 min",
-            "age_seconds": 0,
-            "first_seen": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'),
-            "volatility": f"{volatility:.2f}%",
-            "volume": f"{volume:,.0f}"
-        }
-        results.append(wall)
-
-def main():
-    print("📥 Fetching whale orders from Binance and Bybit...")
-    all_results = []
+def detect_whale_walls():
+    print("📡 Fetching whale orders...")
+    all_walls = []
+    timestamp = datetime.utcnow()
 
     for coin in COINS:
+        symbol = f"{coin}USDT"
+
+        # Filter by volume
         try:
-            # BINANCE
-            binance_symbol = coin + "USDT"
-            market_price = get_price_binance(binance_symbol)
-            bids, asks = get_binance_order_book(binance_symbol)
-            volume, volatility = get_24h_volume(binance_symbol)
-            detect_large_orders("Binance", coin, market_price, bids, "buy", market_price, volume, volatility, all_results)
-            detect_large_orders("Binance", coin, market_price, asks, "sell", market_price, volume, volatility, all_results)
+            volume = get_24h_volume(symbol)
+        except:
+            continue
+        if volume < MIN_VOLUME:
+            continue
 
-            # BYBIT
-            bybit_symbol = coin + "USDT"
-            market_price_bybit = get_price_bybit(bybit_symbol)
-            if market_price_bybit:
-                bids_bybit, asks_bybit = get_bybit_order_book(bybit_symbol)
-                detect_large_orders("Bybit", coin, market_price_bybit, bids_bybit, "buy", market_price_bybit, volume, volatility, all_results)
-                detect_large_orders("Bybit", coin, market_price_bybit, asks_bybit, "sell", market_price_bybit, volume, volatility, all_results)
+        # Market price
+        try:
+            market_price = get_market_price(symbol)
+        except:
+            continue
+        if not market_price:
+            continue
 
-        except Exception as e:
-            print(f"⚠️ Error processing {coin}: {e}")
+        # Order book
+        try:
+            bids, asks = get_order_book(symbol)
+        except:
+            continue
 
-    with open("walls.json", "w") as f:
-        json.dump(all_results, f, indent=2)
-    print(f"✅ Detected and saved {len(all_results)} large orders")
+        for order_list, order_type in [(bids, "buy"), (asks, "sell")]:
+            for price_str, qty_str in order_list:
+                price = float(price_str)
+                qty = float(qty_str)
+                value = price * qty
+
+                if value < MIN_WALL_VALUE:
+                    continue
+
+                distance = ((price - market_price) / market_price) * 100
+                if abs(distance) > MAX_DISTANCE_PERCENT:
+                    continue
+
+                age_text, age_seconds = format_age(timestamp)
+
+                wall = {
+                    "coin": coin,
+                    "exchange": "Binance",
+                    "price": round(price, 5),
+                    "quantity": round(qty, 2),
+                    "value": round(value),
+                    "type": order_type,
+                    "distance": f"{distance:.2f}%",
+                    "age": age_text,
+                    "age_seconds": age_seconds,
+                    "first_seen": timestamp.isoformat(),
+                    "volatility": "-",  # Can be added later
+                    "volume": f"{volume:,.0f}"
+                }
+
+                all_walls.append(wall)
+
+    print(f"✅ {len(all_walls)} walls saved.")
+    return all_walls
+
+def main():
+    while True:
+        walls = detect_whale_walls()
+        with open("walls.json", "w") as f:
+            json.dump(walls, f, indent=2)
+        print("🕒 Sleeping for 5 minutes...\n")
+        time.sleep(300)
 
 if __name__ == "__main__":
     main()
