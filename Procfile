@@ -1,1 +1,1 @@
-web: sleep infinity
+web: python main.py
