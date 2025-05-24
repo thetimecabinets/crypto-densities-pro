@@ -6,12 +6,12 @@ import os
 import time
 from datetime import datetime
 from fetcher import fetch_whale_orders
+from config import FETCH_INTERVAL_MINUTES
 
 app = Flask(__name__)
-CORS(app, origins=["https://cryptodensities.pro"])  # Frontend domain allowed
+CORS(app, origins=["https://cryptodensities.pro"])
 
 WALLS_FILE = 'walls.json'
-FETCH_INTERVAL_SECONDS = 5 * 60
 
 def key(order):
     return f"{order['exchange']}-{order['coin']}-{order['price']}-{order['type']}"
@@ -39,7 +39,7 @@ def persist_walls():
     for wall in current:
         wall_key = key(wall)
         if wall_key in previous_map:
-            wall['first_seen'] = previous_map[wall_key]['first_seen']
+            wall['first_seen'] = previous_map[wall_key].get('first_seen', now)
         else:
             wall['first_seen'] = now
 
@@ -53,8 +53,8 @@ def persist_walls():
 def fetch_loop():
     while True:
         persist_walls()
-        print("😴 Sleeping for 5 minutes...\n")
-        time.sleep(FETCH_INTERVAL_SECONDS)
+        print(f"😴 Sleeping for {FETCH_INTERVAL_MINUTES} minutes...\n")
+        time.sleep(FETCH_INTERVAL_MINUTES * 60)
 
 # Start background fetching thread
 threading.Thread(target=fetch_loop, daemon=True).start()
