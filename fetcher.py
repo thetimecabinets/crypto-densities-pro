@@ -50,7 +50,7 @@ def calculate_distance(order_price, market_price):
         return 0
 
 def calculate_volatility(symbol):
-    # Placeholder: You can add a real volatility calculation later
+    # Placeholder for real volatility logic
     return None
 
 def fetch_whale_orders():
@@ -63,13 +63,12 @@ def fetch_whale_orders():
             continue
 
         price = get_binance_price(coin)
-        if not price:
-            continue
+        if not price or price < 0.1:
+            continue  # skip unstable or extremely low price coins
 
         volume = get_24h_volume_binance(coin)
         volatility = calculate_volatility(coin)
 
-        # Binance
         for exchange, order_book_fn in [("Binance", get_binance_order_book), ("Bybit", get_bybit_order_book)]:
             bids, asks = order_book_fn(coin)
             for order_type, levels in [("buy", bids), ("sell", asks)]:
