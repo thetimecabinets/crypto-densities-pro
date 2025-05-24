@@ -3,7 +3,7 @@ import time
 import json
 from datetime import datetime
 from fetcher import fetch_whale_orders
-from main import app  # imports your Flask app
+from main import app  # this imports the Flask app
 
 WALLS_FILE = 'walls.json'
 FETCH_INTERVAL_SECONDS = 5 * 60
@@ -42,7 +42,7 @@ def persist_walls(current, previous):
 
 def fetch_loop():
     while True:
-        print("📬 Fetching whale orders from Binance and Bybit...")
+        print("📬 Fetching whale orders...")
         current = fetch_whale_orders()
         previous = load_previous_walls()
         merged = persist_walls(current, previous)
@@ -54,5 +54,6 @@ def fetch_loop():
 if __name__ == "__main__":
     # Start background fetcher
     threading.Thread(target=fetch_loop, daemon=True).start()
+
     # Start Flask server
     app.run(host="0.0.0.0", port=8080)
