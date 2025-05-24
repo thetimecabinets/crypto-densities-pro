@@ -1,12 +1,21 @@
 import requests
 import json
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 
 WALLS_FILE = 'walls.json'
-MIN_WALL_VALUE = 100000
+MIN_WALL_VALUE = 50000  # lowered for better detection during testing
 BINANCE_API = 'https://api.binance.com'
 FETCH_INTERVAL_SECONDS = 300  # 5 minutes
+
+# Custom quantity thresholds by coin
+MIN_QUANTITY = {
+    "BTC": 1.0,
+    "ETH": 10.0,
+    "XRP": 5000.0,
+    "SOL": 100.0,
+    "DOGE": 10000.0
+}
 
 def get_top_symbols(limit=50):
     url = f'{BINANCE_API}/api/v3/ticker/24hr'
@@ -63,6 +72,7 @@ def format_age(seconds):
     return f"{days}d ago"
 
 def build_walls(symbol, ticker, orderbook, prev_walls):
+    coin = symbol.replace("USDT", "")
     price_now = float(ticker['lastPrice'])
     volume_24h = round(float(ticker['quoteVolume']))
     volatility = abs(float(ticker['priceChangePercent']))
@@ -73,14 +83,20 @@ def build_walls(symbol, ticker, orderbook, prev_walls):
             price = float(entry[0])
             quantity = float(entry[1])
             value = price * quantity
+
+            # Apply value threshold
             if value < MIN_WALL_VALUE:
+                continue
+
+            # Apply quantity filter for known coins
+            if coin in MIN_QUANTITY and quantity < MIN_QUANTITY[coin]:
                 continue
 
             wall = {
                 "type": "buy" if side == "bids" else "sell",
                 "exchange": "Binance",
-                "coin": symbol.replace("USDT", ""),
-                "price": round(price, 2),
+                "coin": coin,
+                "price": round(price, 5),
                 "quantity": round(quantity, 2),
                 "value": round(value, 2),
                 "distance": f"{round(((price - price_now) / price_now) * 100, 2)}%",
@@ -115,6 +131,8 @@ def main():
         try:
             orderbook = fetch_order_book(symbol)
             walls = build_walls(symbol, ticker, orderbook, prev_walls)
+            if walls:
+                print(f"✅ {symbol}: {len(walls)} walls found")
             all_walls.extend(walls)
             time.sleep(0.1)
         except Exception as e:
