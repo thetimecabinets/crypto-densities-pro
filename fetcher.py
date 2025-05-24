@@ -3,7 +3,7 @@ import json
 import random
 
 OUTPUT_FILE = 'data.json'
-MIN_ORDER_VALUE = 100000  # ✅ NEW: Only keep orders > 100k
+MIN_ORDER_VALUE = 25000  # ✅ NEW: Only keep orders > 100k
 
 def fetch_top_50_binance_symbols():
     url = 'https://api.binance.com/api/v3/ticker/24hr'
