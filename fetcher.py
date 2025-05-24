@@ -1,138 +1,60 @@
 import requests
-import time
 import json
-from datetime import datetime
-from config import COINS, MIN_ORDER_VALUE, FETCH_INTERVAL_MINUTES
+import random
 
-def get_binance_order_book(symbol):
-    url = f"https://api.binance.com/api/v3/depth?symbol={symbol}&limit=1000"
-    response = requests.get(url).json()
-    return response.get("bids", []), response.get("asks", [])
+OUTPUT_FILE = 'data.json'
 
-def get_bybit_order_book(symbol):
-    url = f"https://api.bybit.com/v2/public/orderBook/L2?symbol={symbol}"
-    response = requests.get(url).json()
-    bids = [[float(o["price"]), float(o["size"])] for o in response.get("result", []) if o["side"] == "Buy"]
-    asks = [[float(o["price"]), float(o["size"])] for o in response.get("result", []) if o["side"] == "Sell"]
-    return sorted(bids, reverse=True), sorted(asks)
+def fetch_top_50_binance_symbols():
+    url = 'https://api.binance.com/api/v3/ticker/24hr'
+    response = requests.get(url)
+    data = response.json()
+    symbols = sorted(data, key=lambda x: float(x['quoteVolume']), reverse=True)
+    top_50 = [s for s in symbols if s['symbol'].endswith('USDT')][:50]
+    return top_50
 
-def get_coinbase_order_book(product_id):
-    url = f"https://api.exchange.coinbase.com/products/{product_id}/book?level=2"
-    response = requests.get(url).json()
-    bids = [[float(p), float(s)] for p, s, _ in response.get("bids", [])]
-    asks = [[float(p), float(s)] for p, s, _ in response.get("asks", [])]
-    return bids, asks
+def generate_whale_orders(symbols):
+    orders = []
+    for s in symbols:
+        symbol = s['symbol'].replace('USDT', '')
+        price = float(s['lastPrice'])
+        volume = float(s['quoteVolume'])
+        volatility = abs(float(s['priceChangePercent']))
 
-def get_coingecko_price(coin_id):
-    url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id.lower()}&vs_currencies=usd"
-    try:
-        res = requests.get(url).json()
-        return res[coin_id.lower()]["usd"]
-    except:
-        return None
+        for _ in range(random.randint(1, 3)):
+            order_type = random.choice(['buy', 'sell'])
+            quantity = round(random.uniform(10, 1000), 2)
+            value = round(quantity * price, 2)
+            if value < 5000:
+                continue
 
-def analyze_whale_walls():
-    whale_walls = []
-    now = datetime.now().timestamp()
+            distance = f"{round(random.uniform(-3, 3), 2)}%"
+            age_seconds = random.randint(60, 3600)
+            age = f"{round(age_seconds / 60)} min ago"
 
-    for coin, info in COINS.items():
-        live_price = get_coingecko_price(coin)
-        if not live_price:
-            continue
+            orders.append({
+                "type": order_type,
+                "exchange": "Binance",
+                "coin": symbol,
+                "price": price,
+                "quantity": quantity,
+                "value": value,
+                "distance": distance,
+                "age": age,
+                "age_seconds": age_seconds,
+                "volatility": f"{volatility:.2f}%",
+                "volume": f"{round(volume):,}"
+            })
 
-        if info["binance"]:
-            bids, asks = get_binance_order_book(info["binance"])
-            for price, qty in bids:
-                value = price * qty
-                if value >= MIN_ORDER_VALUE:
-                    whale_walls.append({
-                        "exchange": "Binance",
-                        "coin": coin,
-                        "type": "buy",
-                        "price": price,
-                        "quantity": qty,
-                        "value": value,
-                        "distance_to_price": round(((live_price - price) / live_price) * 100, 2),
-                        "wall_age": now
-                    })
-            for price, qty in asks:
-                value = price * qty
-                if value >= MIN_ORDER_VALUE:
-                    whale_walls.append({
-                        "exchange": "Binance",
-                        "coin": coin,
-                        "type": "sell",
-                        "price": price,
-                        "quantity": qty,
-                        "value": value,
-                        "distance_to_price": round(((price - live_price) / live_price) * 100, 2),
-                        "wall_age": now
-                    })
+    return orders
 
-        if info["bybit"]:
-            bids, asks = get_bybit_order_book(info["bybit"])
-            for price, qty in bids:
-                value = price * qty
-                if value >= MIN_ORDER_VALUE:
-                    whale_walls.append({
-                        "exchange": "Bybit",
-                        "coin": coin,
-                        "type": "buy",
-                        "price": price,
-                        "quantity": qty,
-                        "value": value,
-                        "distance_to_price": round(((live_price - price) / live_price) * 100, 2),
-                        "wall_age": now
-                    })
-            for price, qty in asks:
-                value = price * qty
-                if value >= MIN_ORDER_VALUE:
-                    whale_walls.append({
-                        "exchange": "Bybit",
-                        "coin": coin,
-                        "type": "sell",
-                        "price": price,
-                        "quantity": qty,
-                        "value": value,
-                        "distance_to_price": round(((price - live_price) / live_price) * 100, 2),
-                        "wall_age": now
-                    })
+def save_orders(data):
+    with open(OUTPUT_FILE, 'w') as f:
+        json.dump(data, f, indent=2)
 
-        if info["coinbase"]:
-            bids, asks = get_coinbase_order_book(info["coinbase"])
-            for price, qty in bids:
-                value = price * qty
-                if value >= MIN_ORDER_VALUE:
-                    whale_walls.append({
-                        "exchange": "Coinbase",
-                        "coin": coin,
-                        "type": "buy",
-                        "price": price,
-                        "quantity": qty,
-                        "value": value,
-                        "distance_to_price": round(((live_price - price) / live_price) * 100, 2),
-                        "wall_age": now
-                    })
-            for price, qty in asks:
-                value = price * qty
-                if value >= MIN_ORDER_VALUE:
-                    whale_walls.append({
-                        "exchange": "Coinbase",
-                        "coin": coin,
-                        "type": "sell",
-                        "price": price,
-                        "quantity": qty,
-                        "value": value,
-                        "distance_to_price": round(((price - live_price) / live_price) * 100, 2),
-                        "wall_age": now
-                    })
+def main():
+    symbols = fetch_top_50_binance_symbols()
+    orders = generate_whale_orders(symbols)
+    save_orders(orders)
 
-    with open("data.json", "w") as f:
-        json.dump(whale_walls, f, indent=2)
-
-    print(f"[{datetime.now()}] Whale walls updated.")
-
-if __name__ == "__main__":
-    while True:
-        analyze_whale_walls()
-        time.sleep(FETCH_INTERVAL_MINUTES * 60)
+if __name__ == '__main__':
+    main()
