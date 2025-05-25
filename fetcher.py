@@ -50,8 +50,8 @@ def calculate_distance(order_price, market_price):
         return 0
 
 def calculate_volatility(symbol):
-    # Placeholder for real volatility logic
-    return None
+    # Placeholder: return None or implement logic using recent price variation
+    return None  # e.g., return 2.54
 
 def fetch_whale_orders():
     print("📬 Fetching whale orders from Binance and Bybit...")
@@ -92,8 +92,8 @@ def fetch_whale_orders():
                             "age": "0 min",
                             "age_seconds": 0,
                             "first_seen": now.isoformat(),
-                            "volatility": f"{volatility:+.2f}%" if volatility else "-",
-                            "volume": f"{volume:,.0f}" if volume else "-"
+                            "volatility": volatility if volatility is not None else None,
+                            "volume": volume if volume is not None else None
                         })
 
     return walls
