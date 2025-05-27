@@ -7,11 +7,14 @@ import time
 from datetime import datetime
 from fetcher import fetch_whale_orders
 from config import FETCH_INTERVAL_MINUTES
+from collections import defaultdict
+from statistics import mean
 
 app = Flask(__name__)
 CORS(app, origins=["https://cryptodensities.pro"])
 
 WALLS_FILE = 'walls.json'
+INSIGHTS_FILE = 'wall-insights.json'
 
 def key(order):
     return f"{order['exchange']}-{order['coin']}-{order['price']}-{order['type']}"
@@ -26,6 +29,42 @@ def load_previous_walls():
 def save_walls(data):
     with open(WALLS_FILE, 'w') as f:
         json.dump(data, f, indent=2)
+    generate_insights(data)  # 👈 Generate insights after saving walls
+
+def generate_insights(walls):
+    summary = defaultdict(lambda: {
+        "wall_count": 0,
+        "total_value": 0,
+        "distances": [],
+        "buy_count": 0,
+        "sell_count": 0
+    })
+
+    for wall in walls:
+        coin = wall["coin"]
+        summary[coin]["wall_count"] += 1
+        summary[coin]["total_value"] += wall["value"]
+        summary[coin]["distances"].append(abs(float(wall["distance"])))
+        if wall["type"] == "buy":
+            summary[coin]["buy_count"] += 1
+        elif wall["type"] == "sell":
+            summary[coin]["sell_count"] += 1
+
+    insights = {}
+    for coin, data in summary.items():
+        total = data["wall_count"]
+        insights[coin] = {
+            "wall_count": total,
+            "average_value": round(data["total_value"] / total, 2),
+            "average_distance": round(mean(data["distances"]), 2),
+            "buy_ratio": round(data["buy_count"] / total, 2),
+            "sell_ratio": round(data["sell_count"] / total, 2)
+        }
+
+    with open(INSIGHTS_FILE, "w") as f:
+        json.dump(insights, f, indent=2)
+
+    print("✅ wall-insights.json generated.")
 
 def persist_walls():
     print("📬 Fetching whale orders...")
@@ -71,3 +110,12 @@ def get_walls():
         return jsonify(data)
     except Exception as e:
         return jsonify({"error": "Could not load walls", "details": str(e)}), 500
+
+@app.route("/api/insights")
+def get_insights():
+    try:
+        with open(INSIGHTS_FILE, 'r') as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": "Could not load insights", "details": str(e)}), 500
