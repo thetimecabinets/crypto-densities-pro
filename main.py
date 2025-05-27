@@ -5,7 +5,7 @@ import json
 import os
 import time
 from datetime import datetime
-from fetcher import fetch_whale_orders  # ✅ works now
+from fetcher import fetch_whale_orders  # ✅ this matches fetcher.py
 from config import FETCH_INTERVAL_MINUTES
 from collections import defaultdict
 from statistics import mean
