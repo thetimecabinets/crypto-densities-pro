@@ -4,6 +4,9 @@ import time
 from datetime import datetime
 from config import COINS, MIN_ORDER_VALUE
 
+from collections import defaultdict
+from statistics import mean
+
 STABLECOINS = {"USDT", "USDC", "BUSD", "DAI", "TUSD", "USDP", "EUR", "FDUSD"}
 DISTANCE_THRESHOLD = 10.0  # max ±10%
 
@@ -24,91 +27,83 @@ def get_binance_order_book(symbol):
     except:
         return [], []
 
-def get_bybit_order_book(symbol):
-    url = f"https://api.bybit.com/v5/market/orderbook?category=spot&symbol={symbol}USDT"
-    try:
-        response = requests.get(url).json()
-        result = response.get("result", {})
-        bids = [[float(i[0]), float(i[1])] for i in result.get("b", [])]
-        asks = [[float(i[0]), float(i[1])] for i in result.get("a", [])]
-        return bids, asks
-    except:
-        return [], []
+def generate_insights(walls):
+    summary = defaultdict(lambda: {
+        "wall_count": 0,
+        "total_value": 0,
+        "distances": [],
+        "buy_count": 0,
+        "sell_count": 0
+    })
 
-def get_24h_volume_binance(symbol):
-    url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}USDT"
-    try:
-        data = requests.get(url).json()
-        return float(data["quoteVolume"])
-    except:
-        return None
+    for wall in walls:
+        coin = wall["coin"]
+        summary[coin]["wall_count"] += 1
+        summary[coin]["total_value"] += wall["value"]
+        summary[coin]["distances"].append(abs(float(wall["distance"])))
+        if wall["type"] == "buy":
+            summary[coin]["buy_count"] += 1
+        elif wall["type"] == "sell":
+            summary[coin]["sell_count"] += 1
 
-def calculate_distance(order_price, market_price):
-    try:
-        return ((order_price - market_price) / market_price) * 100
-    except ZeroDivisionError:
-        return 0
+    insights = {}
+    for coin, data in summary.items():
+        total = data["wall_count"]
+        insights[coin] = {
+            "wall_count": total,
+            "average_value": round(data["total_value"] / total, 2),
+            "average_distance": round(mean(data["distances"]), 2),
+            "buy_ratio": round(data["buy_count"] / total, 2),
+            "sell_ratio": round(data["sell_count"] / total, 2)
+        }
 
-def calculate_volatility(symbol):
-    # Placeholder: return None or implement logic using recent price variation
-    return None  # e.g., return 2.54
+    with open("wall-insights.json", "w") as f:
+        json.dump(insights, f, indent=2)
 
-def fetch_whale_orders():
-    print("📬 Fetching whale orders from Binance and Bybit...")
+    print("✅ wall-insights.json generated.")
+
+def detect_and_save_walls():
     walls = []
-    now = datetime.utcnow()
 
-    for coin in COINS:
-        if coin in STABLECOINS:
+    for symbol in COINS:
+        if symbol in STABLECOINS:
             continue
 
-        price = get_binance_price(coin)
-        if not price or price < 0.1:
-            continue  # skip unstable or extremely low price coins
+        price = get_binance_price(symbol)
+        if price is None:
+            continue
 
-        volume = get_24h_volume_binance(coin)
-        volatility = calculate_volatility(coin)
+        bids, asks = get_binance_order_book(symbol)
 
-        for exchange, order_book_fn in [("Binance", get_binance_order_book), ("Bybit", get_bybit_order_book)]:
-            bids, asks = order_book_fn(coin)
-            for order_type, levels in [("buy", bids), ("sell", asks)]:
-                for order_price, quantity in levels:
-                    value = order_price * quantity
-                    distance = calculate_distance(order_price, price)
+        for price_list, wall_type in [(bids, "buy"), (asks, "sell")]:
+            for wall_price, qty in price_list:
+                value = wall_price * qty
+                distance = abs((wall_price - price) / price) * 100
 
-                    if (
-                        value >= MIN_ORDER_VALUE and
-                        abs(distance) <= DISTANCE_THRESHOLD and
-                        coin not in STABLECOINS
-                    ):
-                        walls.append({
-                            "exchange": exchange,
-                            "coin": coin,
-                            "price": order_price,
-                            "quantity": quantity,
-                            "value": value,
-                            "type": order_type,
-                            "distance": f"{distance:+.2f}%",
-                            "age": "0 min",
-                            "age_seconds": 0,
-                            "first_seen": now.isoformat(),
-                            "volatility": volatility if volatility is not None else None,
-                            "volume": volume if volume is not None else None
-                        })
+                if value < MIN_ORDER_VALUE or distance > DISTANCE_THRESHOLD:
+                    continue
 
-    return walls
+                wall = {
+                    "coin": symbol,
+                    "type": wall_type,
+                    "exchange": "Binance",
+                    "price": round(wall_price, 2),
+                    "quantity": round(qty, 4),
+                    "value": round(value, 2),
+                    "distance": round(distance, 2),
+                    "age_seconds": 0,
+                    "age": "0s",
+                    "volatility": None,
+                    "volume": None
+                }
 
-def save_walls(walls, filename="walls.json"):
-    with open(filename, "w") as f:
+                walls.append(wall)
+
+    with open("walls.json", "w") as f:
         json.dump(walls, f, indent=2)
+        generate_insights(walls)  # 👈 Generate wall-insights.json here
 
-def main():
-    while True:
-        walls = fetch_whale_orders()
-        save_walls(walls)
-        print(f"✅ Detected and saved {len(walls)} large orders")
-        print("😴 Sleeping for 5 minutes...\n")
-        time.sleep(300)
+    print("✅ walls.json and wall-insights.json updated")
 
 if __name__ == "__main__":
-    main()
+    detect_and_save_walls()
