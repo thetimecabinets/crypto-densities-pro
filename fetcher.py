@@ -2,9 +2,11 @@ import requests
 from config import MIN_ORDER_VALUE
 
 COINS = [
-    "BTC", "ETH", "SOL", "BNB", "AVAX",
-    "MATIC", "LINK", "ATOM", "ADA", "NEAR",
-    "INJ", "APT", "ARB", "LTC", "DOGE"
+    "BTC", "ETH", "SOL", "BNB", "AVAX", "MATIC", "ADA", "DOGE", "XRP", "DOT",
+    "SHIB", "TRX", "LTC", "LINK", "NEAR", "ATOM", "UNI", "ICP", "FIL", "XLM",
+    "HBAR", "APT", "ARB", "IMX", "SUI", "INJ", "QNT", "FTM", "AAVE", "RUNE",
+    "GRT", "MKR", "OP", "EGLD", "CRV", "SNX", "DYDX", "PEPE", "RNDR", "FLOW",
+    "KAVA", "CHZ", "GMT", "ZIL", "TWT", "ALGO", "XMR", "ENS", "1INCH", "COMP"
 ]
 
 STABLECOINS = {"USDT", "USDC", "BUSD", "DAI", "TUSD", "USDP", "EUR", "FDUSD"}
