@@ -1,5 +1,12 @@
 import requests
-from config import COINS, MIN_ORDER_VALUE
+from config import MIN_ORDER_VALUE
+
+# 15 coins, avoiding low-price/stablecoins
+COINS = [
+    "BTC", "ETH", "SOL", "BNB", "AVAX",
+    "MATIC", "LINK", "ATOM", "ADA", "NEAR",
+    "INJ", "APT", "ARB", "LTC", "DOGE"
+]
 
 STABLECOINS = {"USDT", "USDC", "BUSD", "DAI", "TUSD", "USDP", "EUR", "FDUSD"}
 DISTANCE_THRESHOLD = 10.0  # max ±10%
@@ -29,8 +36,8 @@ def fetch_whale_orders():
             continue
 
         price = get_binance_price(symbol)
-        if price is None:
-            continue
+        if price is None or price < 0.10:
+            continue  # ✅ skip low-price coins
 
         bids, asks = get_binance_order_book(symbol)
 
