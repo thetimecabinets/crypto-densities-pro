@@ -1,11 +1,5 @@
 import requests
-import json
-import time
-from datetime import datetime
 from config import COINS, MIN_ORDER_VALUE
-
-from collections import defaultdict
-from statistics import mean
 
 STABLECOINS = {"USDT", "USDC", "BUSD", "DAI", "TUSD", "USDP", "EUR", "FDUSD"}
 DISTANCE_THRESHOLD = 10.0  # max ±10%
@@ -27,42 +21,7 @@ def get_binance_order_book(symbol):
     except:
         return [], []
 
-def generate_insights(walls):
-    summary = defaultdict(lambda: {
-        "wall_count": 0,
-        "total_value": 0,
-        "distances": [],
-        "buy_count": 0,
-        "sell_count": 0
-    })
-
-    for wall in walls:
-        coin = wall["coin"]
-        summary[coin]["wall_count"] += 1
-        summary[coin]["total_value"] += wall["value"]
-        summary[coin]["distances"].append(abs(float(wall["distance"])))
-        if wall["type"] == "buy":
-            summary[coin]["buy_count"] += 1
-        elif wall["type"] == "sell":
-            summary[coin]["sell_count"] += 1
-
-    insights = {}
-    for coin, data in summary.items():
-        total = data["wall_count"]
-        insights[coin] = {
-            "wall_count": total,
-            "average_value": round(data["total_value"] / total, 2),
-            "average_distance": round(mean(data["distances"]), 2),
-            "buy_ratio": round(data["buy_count"] / total, 2),
-            "sell_ratio": round(data["sell_count"] / total, 2)
-        }
-
-    with open("wall-insights.json", "w") as f:
-        json.dump(insights, f, indent=2)
-
-    print("✅ wall-insights.json generated.")
-
-def detect_and_save_walls():
+def fetch_whale_orders():
     walls = []
 
     for symbol in COINS:
@@ -75,8 +34,8 @@ def detect_and_save_walls():
 
         bids, asks = get_binance_order_book(symbol)
 
-        for price_list, wall_type in [(bids, "buy"), (asks, "sell")]:
-            for wall_price, qty in price_list:
+        for order_book, wall_type in [(bids, "buy"), (asks, "sell")]:
+            for wall_price, qty in order_book:
                 value = wall_price * qty
                 distance = abs((wall_price - price) / price) * 100
 
@@ -99,11 +58,4 @@ def detect_and_save_walls():
 
                 walls.append(wall)
 
-    with open("walls.json", "w") as f:
-        json.dump(walls, f, indent=2)
-        generate_insights(walls)  # 👈 Generate wall-insights.json here
-
-    print("✅ walls.json and wall-insights.json updated")
-
-if __name__ == "__main__":
-    detect_and_save_walls()
+    return walls
