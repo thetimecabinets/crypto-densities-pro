@@ -1,7 +1,6 @@
 import requests
 from config import MIN_ORDER_VALUE
 
-# 15 coins, avoiding low-price/stablecoins
 COINS = [
     "BTC", "ETH", "SOL", "BNB", "AVAX",
     "MATIC", "LINK", "ATOM", "ADA", "NEAR",
@@ -28,6 +27,22 @@ def get_binance_order_book(symbol):
     except:
         return [], []
 
+def get_binance_24h_stats(symbol):
+    url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}USDT"
+    try:
+        data = requests.get(url).json()
+        volume = float(data.get("quoteVolume", 0))
+        high = float(data.get("highPrice", 0))
+        low = float(data.get("lowPrice", 0))
+        last_price = float(data.get("lastPrice", 0))
+        if last_price > 0:
+            volatility = round(((high - low) / last_price) * 100, 2)
+        else:
+            volatility = None
+        return volume, volatility
+    except:
+        return None, None
+
 def fetch_whale_orders():
     walls = []
 
@@ -37,8 +52,9 @@ def fetch_whale_orders():
 
         price = get_binance_price(symbol)
         if price is None or price < 0.10:
-            continue  # ✅ skip low-price coins
+            continue
 
+        volume, volatility = get_binance_24h_stats(symbol)
         bids, asks = get_binance_order_book(symbol)
 
         for order_book, wall_type in [(bids, "buy"), (asks, "sell")]:
@@ -59,8 +75,8 @@ def fetch_whale_orders():
                     "distance": round(distance, 2),
                     "age_seconds": 0,
                     "age": "0s",
-                    "volatility": None,
-                    "volume": None
+                    "volatility": volatility,
+                    "volume": volume
                 }
 
                 walls.append(wall)
