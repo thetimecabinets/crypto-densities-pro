@@ -31,7 +31,7 @@ def get_binance_24h_stats(symbol):
     url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}USDT"
     try:
         data = requests.get(url).json()
-        volume = float(data.get("quoteVolume", 0))
+        volume_raw = float(data.get("quoteVolume", 0))
         high = float(data.get("highPrice", 0))
         low = float(data.get("lowPrice", 0))
         last_price = float(data.get("lastPrice", 0))
@@ -39,9 +39,20 @@ def get_binance_24h_stats(symbol):
             volatility = round(((high - low) / last_price) * 100, 2)
         else:
             volatility = None
+        volume = format_number_short(volume_raw)
         return volume, volatility
     except:
-        return None, None
+        return "N/A", None
+
+def format_number_short(n):
+    if n >= 1e9:
+        return f"{n / 1e9:.1f}B"
+    elif n >= 1e6:
+        return f"{n / 1e6:.1f}M"
+    elif n >= 1e3:
+        return f"{n / 1e3:.1f}K"
+    else:
+        return str(round(n))
 
 def fetch_whale_orders():
     walls = []
