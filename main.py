@@ -5,7 +5,7 @@ import json
 import os
 import time
 from datetime import datetime
-from fetcher import fetch_whale_orders
+from fetcher import detect_whale_walls as fetch_whale_orders  # ✅ FIXED import
 from config import FETCH_INTERVAL_MINUTES
 from collections import defaultdict
 from statistics import mean
@@ -29,7 +29,7 @@ def load_previous_walls():
 def save_walls(data):
     with open(WALLS_FILE, 'w') as f:
         json.dump(data, f, indent=2)
-    generate_insights(data)  # 👈 Generate insights after saving walls
+    generate_insights(data)  # ✅ Also save insights
 
 def generate_insights(walls):
     summary = defaultdict(lambda: {
