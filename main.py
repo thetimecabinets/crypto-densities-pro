@@ -5,7 +5,7 @@ import json
 import os
 import time
 from datetime import datetime
-from fetcher import fetch_whale_orders  # ✅ this matches fetcher.py
+from fetcher import fetch_whale_orders
 from config import FETCH_INTERVAL_MINUTES
 from collections import defaultdict
 from statistics import mean
@@ -66,6 +66,21 @@ def generate_insights(walls):
 
     print("✅ wall-insights.json generated.")
 
+def fuzzy_match(wall, previous):
+    symbol = wall["coin"]
+    if symbol not in ["BTC", "ETH"]:
+        return None
+
+    for prev in previous:
+        if (
+            prev["exchange"] == wall["exchange"]
+            and prev["coin"] == wall["coin"]
+            and prev["type"] == wall["type"]
+            and abs(prev["price"] - wall["price"]) / wall["price"] < 0.001  # ±0.1%
+        ):
+            return prev
+    return None
+
 def persist_walls():
     print("📬 Fetching whale orders...")
     previous = load_previous_walls()
@@ -76,9 +91,10 @@ def persist_walls():
     updated = []
 
     for wall in current:
-        wall_key = key(wall)
-        if wall_key in previous_map:
-            wall['first_seen'] = previous_map[wall_key].get('first_seen', now)
+        match = previous_map.get(key(wall)) or fuzzy_match(wall, previous)
+
+        if match:
+            wall['first_seen'] = match.get('first_seen', now)
         else:
             wall['first_seen'] = now
 
