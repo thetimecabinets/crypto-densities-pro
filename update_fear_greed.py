@@ -1,38 +1,35 @@
 import requests
 import json
+import os
 from datetime import datetime
 
-URL = "https://api.alternative.me/fng/"
+# Path to historical data
+HISTORICAL_FILE = "data/historical-fear-greed.json"
 
-try:
-    response = requests.get(URL)
-    data = response.json()["data"][0]
-    index = {
-        "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-        "value": int(data["value"]),
-        "status": data["value_classification"]
-    }
+# Step 1: Fetch current value
+response = requests.get("https://api.alternative.me/fng/")
+data = response.json()
 
-    # Load existing historical data if it exists
-    path = "data/historical-fear-greed.json"
-    try:
-        with open(path, "r") as f:
-            history = json.load(f)
-    except FileNotFoundError:
-        history = []
+value = int(data["data"][0]["value"])
+status = data["data"][0]["value_classification"]
+today = datetime.utcnow().strftime("%Y-%m-%d")
 
-    # Append new entry
-    history.append(index)
+new_entry = {"date": today, "value": value, "status": status}
 
-    # Keep only the last 100 entries
-    history = history[-100:]
+# Step 2: Load existing data
+if os.path.exists(HISTORICAL_FILE):
+    with open(HISTORICAL_FILE, "r") as f:
+        history = json.load(f)
+else:
+    history = []
 
-    # Save updated data
-    with open(path, "w") as f:
-        json.dump(history, f, indent=2)
+# Step 3: Check for duplicates
+if not any(entry["date"] == today for entry in history):
+    history.append(new_entry)
+    print(f"✅ Added: {new_entry}")
+else:
+    print(f"⚠️ Already exists for {today}")
 
-    print("Historical sentiment updated successfully.")
-
-except Exception as e:
-    print("Error:", e)
-    exit(1)
+# Step 4: Save updated file
+with open(HISTORICAL_FILE, "w") as f:
+    json.dump(history, f, indent=2)
