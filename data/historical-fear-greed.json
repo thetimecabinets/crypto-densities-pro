@@ -48,5 +48,10 @@
     "date": "2025-06-05",
     "value": 57,
     "status": "Greed"
+  },
+  {
+    "date": "2025-06-06",
+    "value": 45,
+    "status": "Fear"
   }
 ]
