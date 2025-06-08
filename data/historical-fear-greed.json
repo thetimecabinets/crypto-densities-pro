@@ -58,5 +58,10 @@
     "date": "2025-06-07",
     "value": 52,
     "status": "Neutral"
+  },
+  {
+    "date": "2025-06-08",
+    "value": 62,
+    "status": "Greed"
   }
 ]
