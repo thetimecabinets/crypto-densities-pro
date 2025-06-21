@@ -123,5 +123,10 @@
     "date": "2025-06-20",
     "value": 54,
     "status": "Neutral"
+  },
+  {
+    "date": "2025-06-21",
+    "value": 49,
+    "status": "Neutral"
   }
 ]
