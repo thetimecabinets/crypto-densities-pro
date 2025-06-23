@@ -133,5 +133,10 @@
     "date": "2025-06-22",
     "value": 42,
     "status": "Fear"
+  },
+  {
+    "date": "2025-06-23",
+    "value": 47,
+    "status": "Neutral"
   }
 ]
