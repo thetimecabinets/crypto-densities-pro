@@ -233,5 +233,10 @@
     "date": "2025-07-12",
     "value": 79,
     "status": "Extreme Greed"
+  },
+  {
+    "date": "2025-07-13",
+    "value": 74,
+    "status": "Greed"
   }
 ]
