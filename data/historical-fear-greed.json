@@ -398,5 +398,10 @@
     "date": "2025-08-14",
     "value": 75,
     "status": "Greed"
+  },
+  {
+    "date": "2025-08-15",
+    "value": 60,
+    "status": "Greed"
   }
 ]
