@@ -423,5 +423,10 @@
     "date": "2025-08-19",
     "value": 56,
     "status": "Greed"
+  },
+  {
+    "date": "2025-08-20",
+    "value": 44,
+    "status": "Fear"
   }
 ]
