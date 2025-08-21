@@ -428,5 +428,10 @@
     "date": "2025-08-20",
     "value": 44,
     "status": "Fear"
+  },
+  {
+    "date": "2025-08-21",
+    "value": 50,
+    "status": "Neutral"
   }
 ]
