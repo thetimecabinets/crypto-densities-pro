@@ -433,5 +433,10 @@
     "date": "2025-08-21",
     "value": 50,
     "status": "Neutral"
+  },
+  {
+    "date": "2025-08-22",
+    "value": 50,
+    "status": "Neutral"
   }
 ]
