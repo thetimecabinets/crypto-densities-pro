@@ -503,5 +503,10 @@
     "date": "2025-09-04",
     "value": 51,
     "status": "Neutral"
+  },
+  {
+    "date": "2025-09-05",
+    "value": 48,
+    "status": "Neutral"
   }
 ]
