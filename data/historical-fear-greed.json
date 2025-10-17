@@ -713,5 +713,10 @@
     "date": "2025-10-16",
     "value": 28,
     "status": "Fear"
+  },
+  {
+    "date": "2025-10-17",
+    "value": 22,
+    "status": "Extreme Fear"
   }
 ]
