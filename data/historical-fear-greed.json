@@ -823,5 +823,10 @@
     "date": "2025-11-07",
     "value": 24,
     "status": "Extreme Fear"
+  },
+  {
+    "date": "2025-11-08",
+    "value": 20,
+    "status": "Extreme Fear"
   }
 ]
