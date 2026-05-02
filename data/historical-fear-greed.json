@@ -1,10 +1,5 @@
 [
   {
-    "date": "2025-11-03",
-    "value": 42,
-    "status": "Fear"
-  },
-  {
     "date": "2025-11-04",
     "value": 21,
     "status": "Extreme Fear"
@@ -897,6 +892,11 @@
   {
     "date": "2026-05-01",
     "value": 26,
+    "status": "Fear"
+  },
+  {
+    "date": "2026-05-02",
+    "value": 39,
     "status": "Fear"
   }
 ]
